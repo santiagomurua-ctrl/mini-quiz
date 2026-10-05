@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz: Atención al cliente</title>
+<style>
+  :root {
+    --bg: #fff7ed;
+    --card: #ffffff;
+    --text: #3b2a20;
+    --muted: #8a6f5c;
+    --primary: #f97316;
+    --primary-dark: #ea580c;
+    --accent: #f59e0b;
+    --border: #fde4cc;
+    --ok: #15803d;
+    --ok-bg: #dcfce7;
+    --bad: #b91c1c;
+    --bad-bg: #fee2e2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 100%);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .card {
+    width: 100%;
+    max-width: 560px;
+    background: var(--card);
+    border-radius: 20px;
+    padding: clamp(20px, 5vw, 36px);
+    box-shadow: 0 10px 30px rgba(234, 88, 12, 0.15);
+    border-top: 6px solid var(--primary);
+  }
+  .brand { font-size: .85rem; font-weight: 700; color: var(--primary-dark); letter-spacing: .05em; text-transform: uppercase; }
+  .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: .9rem; margin: 12px 0 6px; }
+  .progress { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--primary)); transition: width .3s; }
+  h1, h2 { margin: 20px 0 16px; font-size: clamp(1.15rem, 4.5vw, 1.45rem); line-height: 1.3; }
+  .options { display: grid; gap: 10px; }
+  .opt {
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: #fffaf5;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 16px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .1s;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--primary); background: #fff1e3; }
+  .opt:active:not(:disabled) { transform: scale(.99); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--ok); background: var(--ok-bg); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+  .opt:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .feedback { margin-top: 16px; padding: 12px 16px; border-radius: 12px; font-size: .95rem; }
+  .feedback.ok { background: var(--ok-bg); color: var(--ok); }
+  .feedback.bad { background: var(--bad-bg); color: var(--bad); }
+  .feedback strong { display: block; margin-bottom: 2px; }
+  .btn {
+    margin-top: 18px;
+    width: 100%;
+    font: inherit;
+    font-weight: 700;
+    color: #fff;
+    background: var(--primary);
+    border: 0;
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn:hover { background: var(--primary-dark); }
+  .result { text-align: center; }
+  .score { font-size: clamp(2.8rem, 14vw, 4rem); font-weight: 800; color: var(--primary-dark); margin: 8px 0; }
+  .result p { color: var(--muted); margin: 0 0 4px; }
+  .emoji { font-size: 3rem; }
+  [hidden] { display: none !important; }
+  @media (max-width: 400px) { .opt { padding: 12px; } }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand">🍔 Atención al cliente</div>
+
+  <section id="quiz">
+    <div class="meta"><span id="counter"></span><span id="scoreLive"></span></div>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="5" id="bar"><div id="fill"></div></div>
+    <h2 id="question"></h2>
+    <div class="options" id="options"></div>
+    <div class="feedback" id="feedback" role="status" aria-live="polite" hidden></div>
+    <button class="btn" id="next" hidden></button>
+  </section>
+
+  <section id="result" class="result" hidden>
+    <div class="emoji" id="rEmoji"></div>
+    <h1 id="rTitle"></h1>
+    <div class="score" id="rScore"></div>
+    <p id="rMsg"></p>
+    <button class="btn" id="restart">Reintentar</button>
+  </section>
+</main>
+
+<script>
+const QUESTIONS = [
+  {
+    q: "Un cliente llega al mostrador. ¿Cuál es la mejor forma de recibirlo?",
+    options: [
+      "Esperar a que él hable primero para no interrumpirlo",
+      "Saludar con una sonrisa, mirarlo a los ojos y preguntarle qué le gustaría pedir",
+      "Terminar de acomodar todo y atenderlo cuando haya tiempo",
+      "Pedirle que decida rápido porque hay fila"
+    ],
+    answer: 1,
+    explanation: "El primer contacto marca la experiencia: un saludo cálido y atención plena hacen que el cliente se sienta bienvenido."
+  },
+  {
+    q: "Un cliente reclama porque su hamburguesa vino sin el queso que pidió. ¿Qué hacés?",
+    options: [
+      "Explicarle que seguramente se olvidó de pedirlo",
+      "Pedirle que vuelva a hacer la fila",
+      "Disculparte, ofrecer corregir el pedido enseguida y agradecer que lo haya avisado",
+      "Ofrecerle un descuento y no hacer nada más"
+    ],
+    answer: 2,
+    explanation: "Disculparse y resolver rápido transforma un error en una oportunidad de fidelizar. Discutir o culpar al cliente empeora todo."
+  },
+  {
+    q: "La cocina está demorada y hay clientes esperando. ¿Cuál es la mejor práctica?",
+    options: [
+      "Avisar de la demora, dar un tiempo estimado realista y agradecer la paciencia",
+      "No decir nada y esperar que nadie reclame",
+      "Decir que ya casi está, aunque falte bastante",
+      "Evitar el contacto visual con los que esperan"
+    ],
+    answer: 0,
+    explanation: "La transparencia reduce la ansiedad. Prometer tiempos falsos genera más enojo que una demora bien comunicada."
+  },
+  {
+    q: "Un cliente pregunta si un producto contiene un ingrediente al que es alérgico y no estás seguro. ¿Qué hacés?",
+    options: [
+      "Decirle que “probablemente no” para no perder la venta",
+      "Cambiar de tema y recomendarle otro producto",
+      "Adivinar según tu experiencia",
+      "Ser honesto, consultar con el encargado o la ficha de ingredientes antes de responder"
+    ],
+    answer: 3,
+    explanation: "Con alergias nunca se improvisa: una respuesta incorrecta puede ser peligrosa. Confirmar la información es siempre lo correcto."
+  },
+  {
+    q: "Al entregar el pedido, ¿cuál es el mejor cierre de la atención?",
+    options: [
+      "Entregar la bolsa sin decir nada para ir más rápido",
+      "Verificar que el pedido esté completo, agradecer y despedir con amabilidad",
+      "Decir “siguiente” apenas pagó",
+      "Insistir varias veces para que compre un postre"
+    ],
+    answer: 1,
+    explanation: "Revisar el pedido evita errores y un agradecimiento sincero deja una buena última impresión, que es la que más se recuerda."
+  }
+];
+
+const $ = id => document.getElementById(id);
+const state = { index: 0, score: 0, answered: false };
+
+function render() {
+  const item = QUESTIONS[state.index];
+  state.answered = false;
+  $("counter").textContent = `Pregunta ${state.index + 1} de ${QUESTIONS.length}`;
+  $("scoreLive").textContent = `Puntaje: ${state.score}`;
+  $("fill").style.width = `${(state.index / QUESTIONS.length) * 100}%`;
+  $("bar").setAttribute("aria-valuenow", state.index);
+  $("question").textContent = item.q;
+  $("feedback").hidden = true;
+  $("next").hidden = true;
+
+  const box = $("options");
+  box.innerHTML = "";
+  item.options.forEach((text, i) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.type = "button";
+    b.textContent = text;
+    b.addEventListener("click", () => choose(i));
+    box.appendChild(b);
+  });
+}
+
+function choose(i) {
+  if (state.answered) return;
+  state.answered = true;
+  const item = QUESTIONS[state.index];
+  const ok = i === item.answer;
+  if (ok) state.score++;
+
+  [...$("options").children].forEach((b, idx) => {
+    b.disabled = true;
+    if (idx === item.answer) b.classList.add("correct");
+    else if (idx === i) b.classList.add("wrong");
+  });
+
+  const fb = $("feedback");
+  fb.className = "feedback " + (ok ? "ok" : "bad");
+  fb.innerHTML = "";
+  const title = document.createElement("strong");
+  title.textContent = ok ? "✅ ¡Correcto!" : "❌ Incorrecto";
+  fb.append(title, item.explanation);
+  fb.hidden = false;
+
+  $("scoreLive").textContent = `Puntaje: ${state.score}`;
+  const next = $("next");
+  next.textContent = state.index === QUESTIONS.length - 1 ? "Ver resultado" : "Siguiente";
+  next.hidden = false;
+  next.focus();
+}
+
+function next() {
+  if (state.index === QUESTIONS.length - 1) return showResult();
+  state.index++;
+  render();
+}
+
+function showResult() {
+  const total = QUESTIONS.length;
+  const s = state.score;
+  let emoji, title, msg;
+  if (s === total) { emoji = "🏆"; title = "¡Atención de primera!"; msg = "Respondiste todo bien. Tus clientes están en buenas manos."; }
+  else if (s >= 3) { emoji = "😊"; title = "¡Muy bien!"; msg = "Vas por buen camino. Repasá las que fallaste para pulir detalles."; }
+  else { emoji = "💪"; title = "A seguir practicando"; msg = "Revisá las explicaciones e intentalo de nuevo, ¡la práctica hace al maestro!"; }
+
+  $("quiz").hidden = true;
+  $("result").hidden = false;
+  $("rEmoji").textContent = emoji;
+  $("rTitle").textContent = title;
+  $("rScore").textContent = `${s} / ${total}`;
+  $("rMsg").textContent = msg;
+  $("restart").focus();
+}
+
+function restart() {
+  state.index = 0;
+  state.score = 0;
+  $("result").hidden = true;
+  $("quiz").hidden = false;
+  render();
+}
+
+$("next").addEventListener("click", next);
+$("restart").addEventListener("click", restart);
+render();
+</script>
+</body>
+</html>
